@@ -1,0 +1,185 @@
+<!-- Content -->
+<div id="planVue">
+	<div class="row">
+		<div class="col-lg-12">
+			<h4 class="page-header">Work Plan</h4>
+		</div>
+	</div>
+	
+	<div class="row">
+		<div class="col-lg-12">
+			<div class="panel panel-default">
+				<div class="panel-body">
+					<div class="row col-lg-12 form-inline">
+						<label>Date:</label>
+						<input class="form-control" datepicker format="yyyy-mm-dd" id="date"/>
+					</div>
+				</div>
+				<div class="panel-footer">
+					<button class="btn btn-default" type="button" v-on:click="doQuery">Search</button>
+				</div>
+			</div>
+		</div>
+	</div>
+		
+	<div class="row">	
+		<div class="col-lg-12">
+			<div class="panel panel-default">
+				<div class="panel-body">
+					<div class="table-responsive">
+						<table class="table table-hover">
+							<thead>
+								<tr>
+									<th width="120">Date</th>
+									<th>Content</th>
+									<th width="100">State</th>
+									<th width="200">Start Time</th>
+									<th width="200">Finish Time</th>
+									<th width="50"><a v-on:click="addData()" class="fa fa-plus"></a></th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr v-for="item in dataList" v-bind:class="{success: item.state == 3 || item.state == 4}">
+									<td width="120" v-on:click="editData(item)">
+										<span v-if="!item.edit">{{item.date}}</span>
+										<input v-if="item.edit" class="form-control" v-model="item.date"/>
+									</td>
+									<td v-on:click="editData(item)" >
+										<span v-if="!item.edit" >{{item.content}}</span>
+										<textarea v-if="item.edit" class="form-control" rows="3" v-model="item.content"></textarea>
+									</td>
+									<td width="150" v-on:click="editData(item)" >
+										<span v-if="!item.edit">
+											<span v-if="item.state == 1">WAIT</span>
+											<span v-if="item.state == 2">WORKING</span>
+											<span v-if="item.state == 3">FINISH</span>
+											<span v-if="item.state == 4">IGNORE</span>
+										</span>
+										<span v-if="item.edit">
+											<select v-model="item.state" class="form-control">
+                                                <option value="1">WAITING</option>
+                                                <option value="2">WORKING</option>
+                                                <option value="3">FINISH</option>
+                                                <option value="4">IGNORE</option>
+                                            </select>
+                                        </span>
+									</td>
+									<td width="200" v-on:click="editData(item)" >
+										<span v-if="!item.edit">{{item.startTime}}</span>
+										<input v-if="item.edit" class="form-control" v-model="item.startTime"/>
+									</td>
+									<td width="200" v-on:click="editData(item)" >
+										<span v-if="!item.edit">{{item.endTime}}</span>
+										<input v-if="item.edit" class="form-control" v-model="item.endTime"/>
+									</td>
+									<td width="50">
+										<a v-if="item.edit" v-on:click="doSave(item)" class="fa fa-check"></a>
+										<a v-if="item.edit" v-on:click="item.edit = false" class="fa fa-undo"></a>
+										<a v-on:click="doDelete(item.id)" class="fa fa-times"></a>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+$(function() {
+	
+	console.log("Plan");
+
+	var app = new Vue({
+		el: "#planVue",
+		data: {
+			dataList: []
+		},
+		methods: {
+			doQuery: function() {
+				app.dataList = [];
+				$.ajax({
+					url: "/plan/list",
+					method: "GET",
+					data: { "date": $("#date").val() },
+					success: function(data) {
+						var arr = [];
+						
+						$.each(data, function(i, v) {
+							arr.push({
+								"id": v.id,
+								"date": v.date,
+								"content": v.content,
+								"state": v.state,
+								"startTime": DateUtils.formatDateYMDTMS(new Date(v.startTime)),
+								"endTime": DateUtils.formatDateYMDTMS(new Date(v.endTime)),
+								"edit": false
+							});
+						});
+
+						app.dataList = arr;
+					}
+				});
+			},
+			doSave: function(item) {
+				$.ajax({
+	        		url: "/plan/save",
+	        		method: "POST",
+	        		contentType: "application/json",
+	        		data: JSON.stringify(item),
+	        		success: function() {
+	        			app.doQuery();
+	        		},
+	        		error: function() {
+	        			alert("Error");
+	        		}
+	        	});
+				
+				item.edit = false;
+			},
+			addData: function() {
+				var data = {
+					date: DateUtils.formatDateYMD(new Date()),
+					state: 1,
+					startTime: DateUtils.formatDateYMDTMS(new Date()),
+					edit: true
+				};
+				app.dataList.unshift(data);
+			},
+			editData: function(data) {
+				for (var i = 0; i < app.dataList.length; i++) {
+					var item = app.dataList[i];
+					if (item.edit && item.id != data.id
+							&& item.content != undefined && item.content != '') {
+						app.doSave(item);
+					}
+				}
+				data.edit = true;
+			},
+			doDelete: function(id) {
+				$.ajax({
+	        		url: "/plan/delete",
+	        		method: "GET",
+	        		data: { id: id },
+	        		success: function(data) {
+	        			app.doQuery();
+	        		}
+	        	});
+			}
+		}
+	});
+	
+	$("input[datepicker]").each(function(i, v) {
+		$(v).datepicker({
+		    format: $(v).attr("format"),
+		    todayBtn: "linked",
+		    autoclose: true,
+		    language: "zh-CN"
+		});
+	});
+	
+	$("#date").val(DateUtils.formatDateYMD(new Date()));
+});
+</script>
