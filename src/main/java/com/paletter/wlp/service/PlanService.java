@@ -9,7 +9,7 @@ import com.paletter.wlp.entity.Plan;
 public class PlanService {
 
 	@WebMapping("/plan/list")
-	public List<Plan> queryPlanList(String date) {
+	public static List<Plan> queryPlanList(String date) {
 		Plan query = new Plan();
 		query.setDate(date);
 		return PlanDao.selectList(query);
